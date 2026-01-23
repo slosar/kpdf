@@ -203,8 +203,8 @@ def main():
     )
     parser.add_argument(
         '-p', '--pages',
-        default='1',
-        help='Page or range of pages to display (e.g., "1", "1-3", "1,3,5", "1-3,5"). Default: 1'
+        default='1-10',
+        help='Page or range of pages to display (e.g., "1", "1-3", "1,3,5", "1-3,5"). Default: 1-10'
     )
     parser.add_argument(
         '-z', '--zoom',
