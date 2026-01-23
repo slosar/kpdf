@@ -13,6 +13,11 @@ import tempfile
 from typing import List, Tuple
 
 
+# Kitty graphics protocol constants
+KITTY_FORMAT_PNG = 100  # f=100 means PNG format
+KITTY_CHUNK_SIZE = 4096  # Recommended chunk size for Kitty protocol
+
+
 def get_terminal_width() -> int:
     """Get the terminal width in pixels."""
     # Try to get terminal size using kitty's method
@@ -90,21 +95,10 @@ def get_pdf_page_count(pdf_path: str) -> int:
     except (subprocess.TimeoutExpired, subprocess.SubprocessError, ValueError, FileNotFoundError):
         pass
     
-    # Fallback: try using pdftoppm
-    try:
-        result = subprocess.run(
-            ['pdftoppm', '-l', '999999', pdf_path],
-            capture_output=True,
-            timeout=2
-        )
-        # pdftoppm will fail with last valid page number in error
-        # For now, assume reasonable default
-        return 999  # Will be filtered by actual conversion
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
-        pass
-    
-    # Last resort: assume single page or return error
-    return 1
+    # Fallback: we'll discover pages during conversion
+    # Return a large number and let the conversion filter out invalid pages
+    # Note: This is a fallback only used when pdfinfo is not available
+    return 9999
 
 
 def pdf_to_image(pdf_path: str, page_num: int, dpi: int, output_path: str) -> bool:
@@ -174,15 +168,15 @@ def display_image_kitty_protocol(image_path: str):
     encoded = base64.standard_b64encode(image_data).decode('ascii')
     
     # Split into chunks (Kitty protocol prefers chunks of 4096 bytes)
-    chunk_size = 4096
-    chunks = [encoded[i:i+chunk_size] for i in range(0, len(encoded), chunk_size)]
+    chunks = [encoded[i:i+KITTY_CHUNK_SIZE] for i in range(0, len(encoded), KITTY_CHUNK_SIZE)]
     
     # Send image using Kitty graphics protocol
     # Format: ESC _G<control data>;<payload>ESC \
     for i, chunk in enumerate(chunks):
         if i == 0:
             # First chunk: send file info
-            control = f"a=T,f=100,m={1 if len(chunks) > 1 else 0}"
+            # a=T: transmission medium (T=direct), f=format (100=PNG), m=more data follows
+            control = f"a=T,f={KITTY_FORMAT_PNG},m={1 if len(chunks) > 1 else 0}"
         elif i == len(chunks) - 1:
             # Last chunk
             control = "m=0"
@@ -268,12 +262,8 @@ def main():
                 continue
             
             # pdftoppm adds page number suffix and extension
-            # Format: output_prefix-pagenum.png
+            # Format: output_prefix-pagenum.png where pagenum matches input page
             image_file = f"{output_prefix}-{page_num}.png"
-            
-            if not os.path.exists(image_file):
-                # Try alternative naming (some versions use 1-based suffix)
-                image_file = f"{output_prefix}-1.png"
             
             if not os.path.exists(image_file):
                 print(f"Warning: Could not find generated image for page {page_num}", file=sys.stderr)
