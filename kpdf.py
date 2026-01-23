@@ -28,7 +28,7 @@ def get_terminal_width() -> int:
             parts = result.stdout.strip().split()
             if len(parts) >= 1:
                 return int(parts[0])
-    except (subprocess.TimeoutExpired, subprocess.SubprocessError, ValueError):
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, ValueError, FileNotFoundError):
         pass
     
     # Fallback: estimate based on character width
