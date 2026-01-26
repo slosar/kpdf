@@ -252,6 +252,9 @@ def main():
     
     # Create temporary directory for images
     with tempfile.TemporaryDirectory() as tmpdir:
+        # Determine padding width for page numbers (pdftoppm zero-pads based on total pages)
+        padding_width = len(str(total_pages))
+        
         # Process each page
         for page_num in pages:
             output_prefix = os.path.join(tmpdir, f'page_{page_num}')
@@ -262,8 +265,8 @@ def main():
                 continue
             
             # pdftoppm adds page number suffix and extension
-            # Format: output_prefix-pagenum.png where pagenum matches input page
-            image_file = f"{output_prefix}-{page_num}.png"
+            # Format: output_prefix-pagenum.png where pagenum is zero-padded
+            image_file = f"{output_prefix}-{page_num:0{padding_width}d}.png"
             
             if not os.path.exists(image_file):
                 print(f"Warning: Could not find generated image for page {page_num}", file=sys.stderr)

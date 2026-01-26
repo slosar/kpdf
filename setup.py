@@ -8,7 +8,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="kpdf",
-    version="0.1.0",
+    version="0.1.1",
     author="kpdf contributors",
     description="Display PDF files in terminal using Kitty graphics protocol",
     long_description=long_description,
