@@ -18,8 +18,12 @@ KITTY_FORMAT_PNG = 100  # f=100 means PNG format
 KITTY_CHUNK_SIZE = 4096  # Recommended chunk size for Kitty protocol
 
 
-def get_terminal_width() -> int:
-    """Get the terminal width in pixels."""
+def get_terminal_width() -> Tuple[int, int]:
+    """Get the terminal width in pixels and character columns.
+    
+    Returns:
+        Tuple of (width_pixels, num_columns)
+    """
     # Try to get terminal size using kitty's method
     try:
         result = subprocess.run(
@@ -32,14 +36,17 @@ def get_terminal_width() -> int:
             # Output format: "width height" in pixels
             parts = result.stdout.strip().split()
             if len(parts) >= 1:
-                return int(parts[0])
+                width_pixels = int(parts[0])
+                cols = shutil.get_terminal_size((80, 24)).columns
+                return width_pixels, cols
     except (subprocess.TimeoutExpired, subprocess.SubprocessError, ValueError, FileNotFoundError):
         pass
     
-    # Fallback: estimate based on character width
-    # Typical terminal: 80 chars wide, ~10 pixels per char
+    # Fallback: estimate based on character columns
     cols = shutil.get_terminal_size((80, 24)).columns
-    return cols * 10
+    # Estimate pixel width: assume typical 10 pixels per char
+    width_pixels = cols * 10
+    return width_pixels, cols
 
 
 def parse_page_range(page_spec: str, total_pages: int) -> List[int]:
@@ -139,8 +146,9 @@ def display_image_kitty(image_path: str):
     """
     try:
         # Use kitty's icat kitten to display the image
+        # Use --fit width to scale image to fit terminal width
         subprocess.run(
-            ['kitty', '+kitten', 'icat', image_path],
+            ['kitty', '+kitten', 'icat', '--fit', 'width', image_path],
             check=True,
             timeout=10
         )
@@ -209,8 +217,8 @@ def main():
     parser.add_argument(
         '-z', '--zoom',
         type=float,
-        default=100.0,
-        help='Zoom level in percent (100%% = 80%% of terminal width). Default: 100'
+        default=None,
+        help='Zoom level in percent (100%% = full terminal width). Default: 120 chars or 100%% width, whichever is smaller'
     )
     
     args = parser.parse_args()
@@ -220,12 +228,21 @@ def main():
         print(f"Error: PDF file '{args.pdf_file}' not found", file=sys.stderr)
         sys.exit(1)
     
-    # Get terminal width
-    terminal_width = get_terminal_width()
+    # Get terminal width in pixels and character columns
+    terminal_width_px, terminal_cols = get_terminal_width()
     
-    # Calculate target width: 100% zoom = 80% of terminal width
-    base_width_pixels = int(terminal_width * 0.8)
-    target_width_pixels = int(base_width_pixels * args.zoom / 100.0)
+    # Calculate default zoom if not specified
+    if args.zoom is None:
+        # Calculate character width in pixels
+        char_width_px = terminal_width_px / terminal_cols
+        # 120 characters in pixels
+        one_twenty_chars_px = int(120 * char_width_px)
+        # Default: min of 120 characters or 100% of terminal width
+        target_width_pixels = min(one_twenty_chars_px, terminal_width_px )
+        args.zoom = (target_width_pixels / terminal_width_px) * 100.0
+    
+    # Calculate target width: 100% zoom = full terminal width
+    target_width_pixels = int(terminal_width_px * args.zoom / 100.0)
     
     # Calculate DPI based on target width
     # Assume US Letter size (8.5 inches wide) as default

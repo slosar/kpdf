@@ -60,9 +60,9 @@ optional arguments:
   -h, --help            show this help message and exit
   -p PAGES, --pages PAGES
                         Page or range of pages to display (e.g., "1", "1-3",
-                        "1,3,5", "1-3,5"). Default: 1
-  -z ZOOM, --zoom ZOOM  Zoom level in percent (100% = 80% of terminal width).
-                        Default: 100
+                        "1,3,5", "1-3,5"). Default: 1-10
+  -z ZOOM, --zoom ZOOM  Zoom level in percent (100% = full terminal width).
+                        Default: 120 characters or 90% width, whichever is smaller
 ```
 
 ## Examples
